@@ -1,0 +1,48 @@
+{
+  "siteName": "Hospitality369",
+  "defaultImage": "/og-image.png",
+  "pages": {
+    "/": {
+      "title": "Hospitality369 | Hotel, Restaurant, Bar & Banquet Recruitment in India",
+      "description": "Hospitality369 recruits, mentors, trains and coaches talent for hotels, resorts, restaurants, bars and banquet halls – 30+ years of hospitality expertise, based in Chennai.",
+      "priority": "1.0",
+      "changefreq": "weekly"
+    },
+    "/recruiting": {
+      "title": "Hospitality Jobs – Apply for Hotel, Restaurant & Bar Roles | Hospitality369",
+      "description": "Apply for hospitality jobs in hotels, resorts, restaurants, bars and banquet halls across India. Chefs, front office, bartenders, housekeeping, managers and more – upload your CV in minutes.",
+      "priority": "0.9",
+      "changefreq": "daily"
+    },
+    "/mentoring": {
+      "title": "Hospitality Mentoring Programmes | Hospitality369",
+      "description": "One-to-one mentoring from experienced hotel, restaurant and F&B leaders. Build confidence, plan your next career move and learn what great hospitality looks like.",
+      "priority": "0.8",
+      "changefreq": "monthly"
+    },
+    "/training": {
+      "title": "Hospitality Training Courses – Front Office, F&B & Service | Hospitality369",
+      "description": "Practical hospitality training for front office, food & beverage service, bartending, housekeeping and banquet operations. Job-ready skills for hotels and restaurants.",
+      "priority": "0.8",
+      "changefreq": "monthly"
+    },
+    "/coaching": {
+      "title": "Hospitality Leadership & Career Coaching | Hospitality369",
+      "description": "Career and leadership coaching for hospitality supervisors and managers – interview preparation, team leadership and guest-experience excellence.",
+      "priority": "0.8",
+      "changefreq": "monthly"
+    },
+    "/referrals": {
+      "title": "Refer Hospitality Talent & Earn Points | Hospitality369",
+      "description": "Know a great chef, bartender or front office star? Share your Hospitality369 referral link and earn points when they apply, get shortlisted and get hired.",
+      "priority": "0.6",
+      "changefreq": "weekly"
+    },
+    "/privacy": {
+      "title": "Privacy Notice | Hospitality369",
+      "description": "How Hospitality369 collects, uses and protects candidate information and CVs.",
+      "priority": "0.3",
+      "changefreq": "yearly"
+    }
+  }
+}
