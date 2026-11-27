@@ -8,6 +8,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useToast } from './ToastContext';
+import { useAuth } from './AuthContext';
 
 const RealtimeContext = createContext({ status: 'offline', subscribe: () => () => {} });
 
@@ -15,16 +16,27 @@ export function RealtimeProvider({ children }) {
   const toast = useToast();
   const [status, setStatus] = useState('connecting'); // connecting | live | reconnecting | offline
   const listeners = useRef(new Set());
+  const { refresh } = useAuth();
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
 
   useEffect(() => {
     const socket = io({ path: '/socket.io', withCredentials: true, transports: ['websocket', 'polling'], reconnectionDelayMax: 8000 });
 
     socket.on('ready', () => setStatus('live'));
-    socket.on('connect_error', () => setStatus('reconnecting'));
+    socket.on('connect_error', (err) => {
+      setStatus('reconnecting');
+      // session revoked (deactivated / password reset) – re-check so the guards send us to sign in
+      if (err?.message === 'unauthorized') refreshRef.current?.();
+    });
     socket.on('disconnect', (reason) => {
       setStatus('reconnecting');
-      // server dropped us on purpose (e.g. permissions changed) – reconnect to re-check access
-      if (reason === 'io server disconnect') setTimeout(() => socket.connect(), 300);
+      // server dropped us on purpose (permissions changed, deactivated…):
+      // reload the session so the menu and page access update at once, then reconnect
+      if (reason === 'io server disconnect') {
+        refreshRef.current?.();
+        setTimeout(() => socket.connect(), 300);
+      }
     });
     socket.io.on('reconnect_failed', () => setStatus('offline'));
 

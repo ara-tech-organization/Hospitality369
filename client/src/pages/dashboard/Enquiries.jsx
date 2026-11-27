@@ -127,7 +127,7 @@ export default function Enquiries() {
                 <span className={cx('block text-sm font-semibold', on ? 'text-white' : 'text-navy-900')}>{s.label}</span>
                 <span className={cx('text-xs', on ? 'text-navy-200' : 'text-navy-400')}>
                   {c ? `${c.total} total` : '—'}
-                  {c?.new > 0 && <span className={cx('ml-1.5 rounded-full px-1.5 py-0.5 font-bold', on ? 'bg-brand-500 text-white' : 'bg-brand-50 text-brand-700')}>{c.new} new</span>}
+                  {c?.new > 0 && <span className={cx('ml-1.5 inline-block whitespace-nowrap rounded-full px-1.5 py-0.5 font-bold', on ? 'bg-brand-500 text-white' : 'bg-brand-50 text-brand-700')}>{c.new} new</span>}
                 </span>
               </span>
             </button>
