@@ -4,7 +4,11 @@ const ApiError = require('../utils/ApiError');
 const { asyncHandler } = require('../utils/helpers');
 const { issueSession, clearSession } = require('../middleware/auth');
 const { audit } = require('../services/audit.service');
-const { PERMISSION_META } = require('../constants');
+const { PERMISSION_META: ALL_PERMISSION_META, PERMISSIONS } = require('../constants');
+const env = require('../config/env');
+
+/** Permissions shown to admins – referral permission hidden while the programme is off */
+const PERMISSION_META = ALL_PERMISSION_META.filter((p) => env.features.referrals || p.key !== PERMISSIONS.REFERRALS_MANAGE);
 
 const passwordRule = z
   .string()

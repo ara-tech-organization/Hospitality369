@@ -12,6 +12,7 @@ export default defineConfig({
       '/api': { target: API, changeOrigin: true },
       '/sitemap.xml': { target: API, changeOrigin: true },
       '/robots.txt': { target: API, changeOrigin: true },
+      '/socket.io': { target: API, changeOrigin: true, ws: true },
     },
   },
   build: {

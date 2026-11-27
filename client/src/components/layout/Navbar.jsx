@@ -4,7 +4,7 @@ import { Menu, X, Briefcase, Compass, GraduationCap, Target, Gift, Images, Phone
 import Logo from '../brand/Logo';
 import Button from '../ui/Button';
 import { cx } from '../../lib/format';
-import { useAuth } from '../../context/AuthContext';
+import { REFERRALS_ENABLED } from '../../lib/features';
 
 export const NAV = [
   { to: '/recruiting', label: 'Recruiting', icon: Briefcase, blurb: 'Apply for hospitality roles' },
@@ -24,7 +24,6 @@ export default function Navbar({ transparent = false }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { pathname } = useLocation();
-  const { user } = useAuth();
 
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
@@ -74,15 +73,14 @@ export default function Navbar({ transparent = false }) {
         </ul>
 
         <div className="hidden items-center gap-2 xl:flex">
-          <NavLink
-            to="/referrals"
-            className={cx('inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-[13px] font-semibold transition', dark ? 'text-brand-200 hover:text-brand-100' : 'text-brand-700 hover:text-brand-600')}
-          >
-            <Gift className="h-4 w-4" aria-hidden /> Refer & Earn
-          </NavLink>
-          {user ? (
-            <Button to="/admin" variant={dark ? 'light' : 'outline'} size="sm">Dashboard</Button>
-          ) : null}
+          {REFERRALS_ENABLED && (
+            <NavLink
+              to="/referrals"
+              className={cx('inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-[13px] font-semibold transition', dark ? 'text-brand-200 hover:text-brand-100' : 'text-brand-700 hover:text-brand-600')}
+            >
+              <Gift className="h-4 w-4" aria-hidden /> Refer & Earn
+            </NavLink>
+          )}
           <Button to="/recruiting" variant="brand" size="sm">Apply now</Button>
         </div>
 
@@ -101,7 +99,7 @@ export default function Navbar({ transparent = false }) {
       {open && (
         <div id="mobile-nav" className="animate-fade-in border-t border-navy-100 bg-white xl:hidden">
           <ul className="container-page grid max-h-[calc(100vh-72px)] gap-1 overflow-y-auto py-4 sm:grid-cols-2">
-            {[...MAIN_NAV, { to: '/referrals', label: 'Refer & Earn', icon: Gift, blurb: 'Earn points for referrals' }].map(({ to, label, icon: Icon, blurb }) => (
+            {[...MAIN_NAV, ...(REFERRALS_ENABLED ? [{ to: '/referrals', label: 'Refer & Earn', icon: Gift, blurb: 'Earn points for referrals' }] : [])].map(({ to, label, icon: Icon, blurb }) => (
               <li key={to}>
                 <NavLink
                   to={to}
@@ -117,9 +115,8 @@ export default function Navbar({ transparent = false }) {
                 </NavLink>
               </li>
             ))}
-            <li className="mt-3 grid gap-2 sm:col-span-2 sm:grid-cols-2">
+            <li className="mt-3 grid gap-2 sm:col-span-2">
               <Button to="/recruiting" variant="brand">Apply now</Button>
-              {user && <Button to="/admin" variant="outline">Dashboard</Button>}
             </li>
           </ul>
         </div>

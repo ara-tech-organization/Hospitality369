@@ -8,6 +8,7 @@ import { PageHeader, Card } from '../../components/ui/Data';
 import { Input, Toggle } from '../../components/ui/Form';
 import { Alert, PageLoader } from '../../components/ui/Feedback';
 import Button from '../../components/ui/Button';
+import { REFERRALS_ENABLED } from '../../lib/features';
 
 export default function Settings() {
   const toast = useToast();
@@ -35,7 +36,7 @@ export default function Settings() {
     setSaving(true);
     setErrors({});
     try {
-      await api.put('/settings', form);
+      await api.put('/settings', REFERRALS_ENABLED ? form : { applications: form.applications, site: form.site });
       toast.success('Settings saved');
       reload();
     } catch (ex) {
@@ -46,7 +47,7 @@ export default function Settings() {
     }
   };
 
-  const r = form.referral;
+  const r = form.referral || {};
   return (
     <form onSubmit={save} noValidate>
       <PageHeader
@@ -63,6 +64,7 @@ export default function Settings() {
           </div>
         </Card>
 
+        {REFERRALS_ENABLED && (
         <Card title={<span className="flex items-center gap-2"><Gift className="h-4 w-4 text-brand-600" aria-hidden />Referral point rules</span>} description="Points are awarded once per milestone">
           <div className="space-y-5">
             <Toggle checked={r.enabled} onChange={set('referral', 'enabled')} label="Referral programme enabled" description="Pauses new sign-ups and new points when off." />
@@ -75,6 +77,7 @@ export default function Settings() {
             <p className="rounded-xl bg-brand-50 px-4 py-3 text-sm text-navy-600">A hired referral currently earns up to <b className="text-navy-900">{(Number(r.pointsOnApplication) || 0) + (Number(r.pointsOnShortlist) || 0) + (Number(r.pointsOnHire) || 0)}</b> points.</p>
           </div>
         </Card>
+        )}
 
         <Card className="xl:col-span-2" title={<span className="flex items-center gap-2"><Building2 className="h-4 w-4 text-brand-600" aria-hidden />Public contact details</span>} description="Shown in the website footer and privacy notice">
           <div className="grid gap-5 md:grid-cols-3">

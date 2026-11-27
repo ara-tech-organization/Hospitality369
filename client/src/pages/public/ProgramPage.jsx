@@ -11,6 +11,7 @@ import { useToast } from '../../context/ToastContext';
 import { PROGRAM_CONTENT } from './programContent';
 import { NAV } from '../../components/layout/Navbar';
 import { Reveal, SpotlightCard, Magnetic, LineReveal } from '../../components/motion';
+import ModuleVisual from '../../components/programs/ModuleVisuals';
 import { cx } from '../../lib/format';
 
 function EnquiryForm({ module, programs, selected, onSelect }) {
@@ -78,6 +79,13 @@ function EnquiryForm({ module, programs, selected, onSelect }) {
 
 const MODULES = NAV.slice(1); // Mentoring, Training, Coaching
 
+/** Light, but each module gets its own tint */
+const HERO_BG = {
+  mentoring: 'bg-[radial-gradient(60rem_40rem_at_85%_10%,rgba(253,186,107,.30),transparent_60%),radial-gradient(50rem_36rem_at_0%_100%,rgba(201,210,243,.6),transparent_60%)] bg-[#fbfbfd]',
+  training: 'bg-[radial-gradient(60rem_40rem_at_10%_20%,rgba(201,210,243,.65),transparent_60%),radial-gradient(40rem_30rem_at_100%_100%,rgba(255,237,213,.9),transparent_60%)] bg-[#fbfbfd]',
+  coaching: 'bg-[radial-gradient(50rem_40rem_at_75%_50%,rgba(255,237,213,.95),transparent_65%),radial-gradient(40rem_30rem_at_0%_0%,rgba(228,233,250,.9),transparent_60%)] bg-[#fbfbfd]',
+};
+
 /** Segmented switcher with a sliding orange indicator */
 function ModuleSwitcher({ module }) {
   const idx = Math.max(0, MODULES.findIndex((m) => m.to === `/${module}`));
@@ -97,48 +105,6 @@ function ModuleSwitcher({ module }) {
         );
       })}
     </nav>
-  );
-}
-
-/** Hexagon photo with benefit chips orbiting on a slowly rotating ring */
-function Orbit({ content }) {
-  const Icon = content.icon;
-  const R = 230;
-  return (
-    <div className="relative mx-auto aspect-square w-full max-w-[520px]" aria-hidden>
-      <div className="absolute inset-[6%] rounded-full border border-dashed border-navy-200" />
-      <div className="absolute inset-[22%] rounded-full border border-brand-200" />
-      <div className="absolute inset-[22%] rounded-full bg-gradient-to-br from-brand-100/70 to-navy-100/70 blur-2xl" />
-
-      {/* center hexagon photo */}
-      <div className="absolute left-1/2 top-1/2 h-[300px] w-[260px] -translate-x-1/2 -translate-y-1/2">
-        <div className="hex group relative h-full w-full overflow-hidden bg-navy-100 shadow-lift transition-transform duration-700 hover:scale-105">
-          <img src={content.image} alt="" className="h-full w-full object-cover transition-transform duration-[1.4s] group-hover:scale-110" />
-          <div className="absolute inset-0 bg-gradient-to-t from-navy-950/50 to-transparent" />
-        </div>
-        <span className="hex absolute -bottom-3 left-1/2 flex h-[72px] w-[62px] -translate-x-1/2 items-center justify-center bg-gradient-to-br from-brand-400 to-brand-600 text-white shadow-glow">
-          <Icon className="h-7 w-7" />
-        </span>
-      </div>
-
-      {/* rotating orbit with upright chips */}
-      <div className="absolute inset-0 animate-[spin_48s_linear_infinite] motion-reduce:animate-none">
-        {content.benefits.map((b, i) => {
-          const angle = (360 / content.benefits.length) * i - 90;
-          const BIcon = b.icon;
-          return (
-            <div key={b.title} className="absolute left-1/2 top-1/2" style={{ transform: `rotate(${angle}deg) translateX(${R}px) rotate(${-angle}deg)` }}>
-              <div className="-translate-x-1/2 -translate-y-1/2">
-                <div className="flex animate-[spin_48s_linear_infinite] items-center gap-2.5 whitespace-nowrap rounded-full border border-white bg-white/90 py-2 pl-2 pr-4 shadow-lift backdrop-blur [animation-direction:reverse] motion-reduce:animate-none">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy-950 text-brand-300"><BIcon className="h-4 w-4" /></span>
-                  <span className="text-sm font-semibold text-navy-900">{b.title}</span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
   );
 }
 
@@ -169,11 +135,11 @@ export default function ProgramPage({ module }) {
     <>
       <Seo jsonLd={jsonLd} />
 
-      {/* ============ HERO (light) ============ */}
-      <section className="mesh-light relative isolate overflow-hidden pb-20 pt-28 lg:pt-32">
-        <div className="hex-pattern-dark absolute inset-0 -z-10 [mask-image:radial-gradient(ellipse_at_70%_45%,black_5%,transparent_65%)]" aria-hidden />
-        <div className="container-page grid items-center gap-10 lg:grid-cols-[1fr_1.05fr]">
-          <div>
+      {/* ============ HERO (light) – each module has its own visual & layout ============ */}
+      <section className={cx('relative isolate overflow-hidden pb-20 pt-28 lg:pt-32', HERO_BG[module])}>
+        <div className="hex-pattern-dark absolute inset-0 -z-10 [mask-image:radial-gradient(ellipse_at_center,black_5%,transparent_65%)]" aria-hidden />
+        <div className="container-page grid items-center gap-12 lg:grid-cols-2">
+          <div className={cx(module === 'training' && 'lg:order-2')}>
             <div className="animate-fade-up"><ModuleSwitcher module={module} /></div>
             <h1 className="mt-10 text-[44px] font-semibold leading-[1.02] tracking-[-.045em] text-navy-950 sm:text-[64px] xl:text-[72px]">
               <LineReveal key={module} delay={100} lines={[content.title[0], <span key="t2" className="brand-text">{content.title[1]}</span>]} />
@@ -184,8 +150,8 @@ export default function ProgramPage({ module }) {
               <Magnetic><Button href="#programmes" variant="outline" size="lg">View programmes</Button></Magnetic>
             </div>
           </div>
-          <div className="hidden animate-fade-up [animation-delay:200ms] md:block">
-            <Orbit content={content} />
+          <div key={module} className={cx('hidden animate-fade-up [animation-delay:150ms] md:block', module === 'training' && 'lg:order-1')}>
+            <ModuleVisual module={module} content={content} />
           </div>
         </div>
       </section>

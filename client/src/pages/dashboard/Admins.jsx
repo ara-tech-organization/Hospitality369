@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { UserPlus, ShieldCheck, KeyRound, Trash2, Crown, Check } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
 import { useAuth } from '../../context/AuthContext';
@@ -10,6 +11,7 @@ import { Input, Toggle } from '../../components/ui/Form';
 import { Alert, Badge, Skeleton } from '../../components/ui/Feedback';
 import { Modal, ConfirmDialog } from '../../components/ui/Overlay';
 import Button from '../../components/ui/Button';
+import { useLiveRefresh } from '../../context/RealtimeContext';
 
 const PASSWORD_HINT = 'At least 10 characters with upper & lowercase letters and a number';
 
@@ -131,7 +133,18 @@ export default function Admins() {
   const toast = useToast();
   const { catalog, user } = useAuth();
   const { data, loading, error, reload } = useApi('/admins');
+  useLiveRefresh(['admins'], reload);
   const [editing, setEditing] = useState(null);
+  // Opened from the dashboard's "New" menu (?new=1)
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setEditing('new');
+      const next = new URLSearchParams(searchParams);
+      next.delete('new');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   const [resetting, setResetting] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [busy, setBusy] = useState(false);

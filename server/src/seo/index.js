@@ -11,13 +11,16 @@ const path = require('path');
 const env = require('../config/env');
 const seo = require('../../../shared/seo-pages.json');
 
+/** Public pages that currently exist (feature-switched pages are left out) */
+const PAGES = Object.fromEntries(Object.entries(seo.pages).filter(([p]) => p !== '/referrals' || env.features.referrals));
+
 const PRIVATE_PREFIXES = ['/admin', '/login'];
 
 const esc = (s = '') => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 function sitemap(_req, res) {
   const today = new Date().toISOString().slice(0, 10);
-  const urls = Object.entries(seo.pages)
+  const urls = Object.entries(PAGES)
     .map(
       ([p, meta]) => `  <url>
     <loc>${esc(env.siteUrl + (p === '/' ? '/' : p))}</loc>
@@ -51,7 +54,7 @@ function renderIndex(distDir) {
     if (!template || !env.isProd) template = fs.readFileSync(path.join(distDir, 'index.html'), 'utf8');
     const route = req.path.replace(/\/+$/, '') || '/';
     const isPrivate = PRIVATE_PREFIXES.some((p) => route === p || route.startsWith(`${p}/`));
-    const meta = seo.pages[route];
+    const meta = PAGES[route];
     let html = template;
 
     if (isPrivate) {

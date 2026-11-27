@@ -14,12 +14,13 @@ import { useToast } from '../../context/ToastContext';
 import { INDUSTRY_LABEL } from '../../lib/constants';
 import { cx } from '../../lib/format';
 import { COMPANY, IMAGES, INDUSTRY_IMAGE } from '../../content/site';
+import { REFERRALS_ENABLED } from '../../lib/features';
 
 const INDUSTRY_ICON = { hotel: Hotel, restaurant: UtensilsCrossed, bar: Wine, banquet: PartyPopper };
 
 const JOURNEY = [
   { key: 'personal', title: 'About you', text: 'Name, email & mobile' },
-  { key: 'role', title: 'Role & position', text: 'Where you want to work' },
+  { key: 'role', title: 'Your role', text: 'Pick a role, or choose Others' },
   { key: 'cv', title: 'Your CV', text: 'PDF, DOC or DOCX' },
   { key: 'consent', title: 'Submit', text: 'Accept privacy & send' },
 ];
@@ -197,9 +198,9 @@ export default function Recruiting() {
 
   const refParam = params.get('ref');
   useEffect(() => {
-    if (refParam) sessionStorage.setItem('h369_ref', refParam.toUpperCase().slice(0, 20));
+    if (REFERRALS_ENABLED && refParam) sessionStorage.setItem('h369_ref', refParam.toUpperCase().slice(0, 20));
   }, [refParam]);
-  const initialRef = refParam || sessionStorage.getItem('h369_ref') || '';
+  const initialRef = REFERRALS_ENABLED ? refParam || sessionStorage.getItem('h369_ref') || '' : '';
   const selectedId = pick?.id || params.get('role') || '';
 
   const pickRole = (r) => {
@@ -233,7 +234,7 @@ export default function Recruiting() {
                 lines={[
                   'Your next role',
                   <>in <span className="brand-text">hospitality</span></>,
-                  <>starts <span className="relative mx-[.1em] inline-block h-[.78em] w-[1.75em] overflow-hidden rounded-full align-[-.06em] shadow-lift ring-[5px] ring-white"><img src={IMAGES.fineDining} alt="" className="h-full w-full object-cover" /></span> here.</>,
+                  'starts here.',
                 ]}
               />
             </h1>
@@ -267,7 +268,9 @@ export default function Recruiting() {
             <div className="mt-10"><Journey progress={progress} /></div>
             <ul className="mt-8 space-y-3 text-sm text-navy-200">
               <li className="flex items-center gap-3"><ShieldCheck className="h-4 w-4 text-brand-400" aria-hidden /> CVs stored privately · every access is logged</li>
-              <li className="flex items-center gap-3"><Sparkles className="h-4 w-4 text-brand-400" aria-hidden /> You&apos;ll get your own referral code after applying</li>
+              {REFERRALS_ENABLED && (
+                <li className="flex items-center gap-3"><Sparkles className="h-4 w-4 text-brand-400" aria-hidden /> You&apos;ll get your own referral code after applying</li>
+              )}
               <li><a href={`tel:${COMPANY.phone.replace(/\s/g, '')}`} className="group inline-flex items-center gap-3 font-semibold text-white"><Phone className="h-4 w-4 text-brand-400" aria-hidden /><span className="link-underline">Need help? {COMPANY.phone}</span></a></li>
             </ul>
           </div>

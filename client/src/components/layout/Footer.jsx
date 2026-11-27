@@ -3,6 +3,7 @@ import { Mail, Phone, MapPin, ArrowUpRight } from 'lucide-react';
 import Button from '../ui/Button';
 import { usePublicConfig } from '../../hooks/usePublicConfig';
 import { COMPANY } from '../../content/site';
+import { REFERRALS_ENABLED } from '../../lib/features';
 
 const COLUMNS = [
   {
@@ -12,7 +13,7 @@ const COLUMNS = [
       ['Mentoring', '/mentoring'],
       ['Training', '/training'],
       ['Coaching', '/coaching'],
-      ['Refer & Earn', '/referrals'],
+      ...(REFERRALS_ENABLED ? [['Refer & Earn', '/referrals']] : []),
     ],
   },
   {

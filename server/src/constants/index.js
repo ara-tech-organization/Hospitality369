@@ -37,7 +37,15 @@ const INDUSTRIES = ['hotel', 'restaurant', 'bar', 'banquet'];
 
 const PROGRAM_MODULES = ['mentoring', 'training', 'coaching'];
 
+/** Special role value used when a candidate's role is not in the list */
+const OTHER_ROLE = 'other';
+const OTHER_ROLE_TITLE = 'Others';
+
 const ENQUIRY_STATUSES = ['new', 'contacted', 'enrolled', 'closed'];
+
+/** Where an enquiry came from: a programme page or the Contact Us page */
+const ENQUIRY_SOURCES = [...PROGRAM_MODULES, 'contact'];
+const CONTACT_TOPICS = ['Hiring staff', 'Finding a job', 'Mentoring', 'Training', 'Coaching', 'Consulting', 'Franchise', 'Catering & events', 'Something else'];
 
 module.exports = {
   PERMISSIONS,
@@ -48,4 +56,8 @@ module.exports = {
   INDUSTRIES,
   PROGRAM_MODULES,
   ENQUIRY_STATUSES,
+  OTHER_ROLE,
+  OTHER_ROLE_TITLE,
+  ENQUIRY_SOURCES,
+  CONTACT_TOPICS,
 };

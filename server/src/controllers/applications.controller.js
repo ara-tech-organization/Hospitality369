@@ -4,11 +4,14 @@ const ExcelJS = require('exceljs');
 const Application = require('../models/Application');
 const { Referral } = require('../models/Referral');
 const storage = require('../services/storage');
+const { streamCandidatesPdf } = require('../services/pdf.service');
+const JobRole = require('../models/JobRole');
 const referralService = require('../services/referral.service');
 const { audit } = require('../services/audit.service');
 const ApiError = require('../utils/ApiError');
+const env = require('../config/env');
 const { asyncHandler, escapeRegex, paging } = require('../utils/helpers');
-const { APPLICATION_STATUSES } = require('../constants');
+const { APPLICATION_STATUSES, OTHER_ROLE } = require('../constants');
 
 const dateStr = z
   .string()
@@ -19,7 +22,7 @@ const dateStr = z
 const schemas = {
   listQuery: z.object({
     search: z.string().trim().max(100).optional(),
-    role: z.string().refine((v) => !v || mongoose.isValidObjectId(v), 'Invalid role').optional(),
+    role: z.string().refine((v) => !v || v === OTHER_ROLE || mongoose.isValidObjectId(v), 'Invalid role').optional(),
     status: z.enum(APPLICATION_STATUSES).optional().or(z.literal('')),
     from: dateStr,
     to: dateStr,
@@ -37,7 +40,8 @@ const schemas = {
 /** Build a MongoDB filter from validated query params */
 function buildFilter(q = {}) {
   const filter = {};
-  if (q.role) filter.role = new mongoose.Types.ObjectId(q.role);
+  if (q.role === OTHER_ROLE) filter.role = null;
+  else if (q.role) filter.role = new mongoose.Types.ObjectId(q.role);
   if (q.status) filter.status = q.status;
   if (q.from || q.to) {
     filter.createdAt = {};
@@ -53,7 +57,7 @@ function buildFilter(q = {}) {
   return filter;
 }
 
-const LIST_FIELDS = 'fullName email mobile roleTitle role position status createdAt resume.originalName resume.size referral.code';
+const LIST_FIELDS = 'fullName email mobile roleTitle role position isOtherRole status createdAt resume.originalName resume.size resume.mimeType';
 
 const list = asyncHandler(async (req, res) => {
   const q = req.validatedQuery;
@@ -61,14 +65,20 @@ const list = asyncHandler(async (req, res) => {
   const { page, limit, skip } = paging(q, { defaultLimit: 10 });
   const sort = { createdAt: q.sort === 'oldest' ? 1 : -1 };
 
-  const [items, total] = await Promise.all([
+  // Status counts use every filter except status itself, so the status tabs always show totals
+  const { status: _omit, ...withoutStatus } = q;
+  const [items, total, byStatus] = await Promise.all([
     Application.find(filter).select(LIST_FIELDS).sort(sort).skip(skip).limit(limit).lean(),
     Application.countDocuments(filter),
+    Application.aggregate([{ $match: buildFilter(withoutStatus) }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
   ]);
+  const statusCounts = Object.fromEntries(APPLICATION_STATUSES.map((st) => [st, 0]));
+  byStatus.forEach((b) => { statusCounts[b._id] = b.count; });
 
   res.json({
     success: true,
     items,
+    statusCounts,
     pagination: { page, limit, total, pages: Math.max(1, Math.ceil(total / limit)) },
   });
 });
@@ -76,7 +86,7 @@ const list = asyncHandler(async (req, res) => {
 const getOne = asyncHandler(async (req, res) => {
   const app = await Application.findById(req.params.id).populate('role', 'title industry active').lean();
   if (!app) throw ApiError.notFound('Application not found');
-  const referral = await Referral.findOne({ application: app._id })
+  const referral = !env.features.referrals ? null : await Referral.findOne({ application: app._id })
     .populate('referrer', 'name email code')
     .lean();
   await audit(req, 'application.viewed', { entity: 'Application', entityId: app._id, summary: `Viewed application of ${app.fullName}` });
@@ -95,7 +105,7 @@ const updateStatus = asyncHandler(async (req, res) => {
   await app.save();
 
   try {
-    await referralService.onStatusChange(app, status);
+    if (env.features.referrals) await referralService.onStatusChange(app, status);
   } catch (err) {
     console.error('[referral] milestone award failed', err.message);
   }
@@ -189,4 +199,40 @@ const remove = asyncHandler(async (req, res) => {
   res.json({ success: true });
 });
 
-module.exports = { schemas, buildFilter, list, getOne, updateStatus, downloadResume, exportExcel, remove };
+/** Human-readable description of the active filters for the report header */
+async function describeFilters(q) {
+  if (q.scope === 'all') return 'All candidates';
+  const parts = [];
+  if (q.role === OTHER_ROLE) parts.push('Role: Others');
+  else if (q.role) {
+    const r = await JobRole.findById(q.role).select('title').lean();
+    if (r) parts.push(`Role: ${r.title}`);
+  }
+  if (q.status) parts.push(`Status: ${q.status}`);
+  if (q.from) parts.push(`From ${q.from}`);
+  if (q.to) parts.push(`To ${q.to}`);
+  if (q.search) parts.push(`Search: "${q.search}"`);
+  return parts.length ? parts.join(' · ') : 'All candidates';
+}
+
+const exportPdf = asyncHandler(async (req, res) => {
+  const q = req.validatedQuery;
+  const filter = q.scope === 'all' ? {} : buildFilter(q);
+  const sort = { createdAt: q.sort === 'oldest' ? 1 : -1 };
+  const subtitle = await describeFilters(q);
+  const cursor = Application.find(filter).select('fullName email mobile roleTitle position createdAt status').sort(sort).lean().cursor();
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="hospitality369-candidates-${stamp}.pdf"`);
+  res.setHeader('Cache-Control', 'private, no-store');
+  const count = await streamCandidatesPdf(res, cursor, { title: 'Candidate applications report', subtitle });
+
+  await audit(req, 'candidates.exported', {
+    entity: 'Application',
+    summary: `Exported ${count} candidate record(s) to PDF (${q.scope === 'all' ? 'all records' : 'filtered'})`,
+    metadata: { format: 'pdf', scope: q.scope || 'filtered', count },
+  });
+});
+
+module.exports = { schemas, buildFilter, list, getOne, updateStatus, downloadResume, exportExcel, exportPdf, remove };

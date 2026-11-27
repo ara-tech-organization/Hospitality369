@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { PROGRAM_MODULES, ENQUIRY_STATUSES } = require('../constants');
+const { PROGRAM_MODULES, ENQUIRY_STATUSES, ENQUIRY_SOURCES } = require('../constants');
 
 /**
  * Programmes offered under Mentoring / Training / Coaching.
@@ -24,7 +24,10 @@ programSchema.index({ module: 1, active: 1, sortOrder: 1 });
 
 const enquirySchema = new mongoose.Schema(
   {
-    module: { type: String, enum: PROGRAM_MODULES, required: true },
+    // mentoring | training | coaching | contact
+    module: { type: String, enum: ENQUIRY_SOURCES, required: true },
+    topic: { type: String, trim: true, maxlength: 60 },
+    company: { type: String, trim: true, maxlength: 120 },
     program: { type: mongoose.Schema.Types.ObjectId, ref: 'Program' },
     programTitle: String,
     name: { type: String, required: true, trim: true, maxlength: 100 },

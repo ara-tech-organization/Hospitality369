@@ -243,6 +243,58 @@
   }
 }
 
+/* Google-style indeterminate progress bar on sign-in */
+@keyframes login-progress { 0% { transform: translateX(-100%); } 100% { transform: translateX(400%); } }
+
+/* Application success popup */
+@keyframes confetti-fall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: .2; }
+}
+.confetti { animation: confetti-fall 2.6s cubic-bezier(.25,.6,.4,1) forwards; }
+@keyframes draw-check { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+.success-check { stroke-dasharray: 24; stroke-dashoffset: 24; animation: draw-check .6s .25s ease-out forwards; }
+
+/* Room-service cloches: steam rises while the dome is lifted */
+@keyframes cloche-steam {
+  0% { opacity: 0; transform: translateY(10px); }
+  35% { opacity: .9; }
+  100% { opacity: 0; transform: translateY(-14px); }
+}
+.cloche-steam { opacity: 0; }
+.group:hover .cloche-steam, .group[data-open='true'] .cloche-steam { animation: cloche-steam 2.2s ease-out infinite; }
+
+/* Key rack: idle sway + swing on hover */
+@keyframes key-sway { 0%, 100% { transform: rotate(-1.6deg); } 50% { transform: rotate(1.6deg); } }
+@keyframes key-swing {
+  0% { transform: rotate(0); }
+  20% { transform: rotate(9deg); }
+  40% { transform: rotate(-6deg); }
+  60% { transform: rotate(3.5deg); }
+  80% { transform: rotate(-1.5deg); }
+  100% { transform: rotate(0); }
+}
+.animate-key-sway { animation: key-sway 4.5s ease-in-out infinite; }
+.group:hover .group-hover\:animate-key-swing { animation: key-swing 1.2s ease-out both; }
+
+/* Split-flap board letters */
+@keyframes flap {
+  0% { transform: rotateX(-90deg); opacity: 0; }
+  60% { transform: rotateX(12deg); opacity: 1; }
+  100% { transform: rotateX(0); opacity: 1; }
+}
+.animate-flap { animation: flap .55s cubic-bezier(.2,.7,.2,1) both; transform-origin: 50% 50%; }
+
+/* Programme hero visuals */
+@keyframes dash-flow { to { stroke-dashoffset: -44; } }
+@keyframes pop-in { 0% { opacity: 0; transform: translateY(10px) scale(.92); } 100% { opacity: 1; transform: none; } }
+@keyframes fill-bar { from { width: 0; } to { width: 100%; } }
+@keyframes ring-in { 0% { transform: scale(1.06); opacity: 0; } 30% { opacity: .9; } 100% { transform: scale(.42); opacity: 0; } }
+.animate-dash-flow { animation: dash-flow 1.4s linear infinite; }
+.animate-pop-in { animation: pop-in .7s cubic-bezier(.16,1,.3,1) both; }
+.animate-fill-bar { width: 0; animation: fill-bar 1.6s cubic-bezier(.16,1,.3,1) forwards; }
+.animate-ring-in { animation: ring-in 3.6s cubic-bezier(.4,0,.2,1) infinite; }
+
 /* Vertical marquee columns ("What we do") */
 @keyframes svc-ticker {
   from { transform: translateY(0); }
@@ -260,3 +312,68 @@
   border: 1px solid #e4e9fa !important;
   box-shadow: 0 12px 32px -12px rgba(11, 16, 48, .25);
 }
+
+/* =====================================================================
+   Dashboard – Google Workspace / Material 3 look (scoped to .gdash so the
+   public website is untouched)
+   ===================================================================== */
+.gdash {
+  font-family: 'Google Sans Text', 'Google Sans', Roboto, Arial, sans-serif;
+  color: #1f1f1f;
+}
+.gdash h1, .gdash h2, .gdash h3, .gdash h4 {
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  letter-spacing: 0;
+}
+/* flat outlined cards */
+.gdash .card {
+  border-radius: 16px;
+  border: 1px solid #e3e6ea;
+  box-shadow: none;
+  background: #fff;
+}
+.gdash .card:hover { box-shadow: none; }
+/* outlined text fields */
+.gdash .input {
+  border-radius: 8px;
+  border-color: #c4c7c5;
+  box-shadow: none;
+  font-size: 14px;
+}
+.gdash .input:hover { border-color: #444746; }
+.gdash .input:focus { border-color: #b25409; box-shadow: 0 0 0 1px #b25409; }
+.gdash .label { font-weight: 500; color: #444746; }
+/* Material buttons: pill shape, no lift */
+.gdash button.shine, .gdash a.shine, .gdash .group\/btn {
+  border-radius: 999px !important;
+  font-weight: 500;
+  letter-spacing: .01em;
+}
+.gdash .group\/btn:hover { transform: none !important; }
+.gdash .shine::after { display: none; }
+.gdash .shadow-glow, .gdash .hover\:shadow-glow-lg:hover { box-shadow: 0 1px 2px rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15) !important; }
+/* tables like Gmail / Drive lists */
+.gdash .table-base th {
+  background: #fff;
+  border-bottom: 1px solid #e3e6ea;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #444746;
+}
+.gdash .table-base td { border-color: #eceef1; color: #1f1f1f; padding: 12px 12px; }
+.gdash .table-base th { padding: 10px 12px; }
+/* round avatars, like Gmail */
+.gdash td span.rounded-xl.bg-navy-950, .gdash li span.rounded-xl.bg-navy-950 { border-radius: 999px; }
+.gdash .table-base tbody tr:hover {
+  background: #f2f6fc;
+  box-shadow: inset 1px 0 0 #dadce0, inset -1px 0 0 #dadce0, 0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
+  position: relative;
+  z-index: 1;
+}
+/* chips / badges */
+.gdash .ring-inset { border-radius: 8px; }
+/* headings that used the brand display font */
+.gdash .font-display { font-family: 'Google Sans', Roboto, Arial, sans-serif; }
+.gdash .eyebrow { display: none; }

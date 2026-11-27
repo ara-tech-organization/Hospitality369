@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Plus, Pencil, Trash2, Search, Briefcase, X, Users, ExternalLink } from 'lucide-react';
 import { useApi, useDebounced } from '../../hooks/useApi';
 import { useAuth } from '../../context/AuthContext';
@@ -12,6 +12,7 @@ import { Input, Select, Textarea, Toggle } from '../../components/ui/Form';
 import { Alert, Badge, EmptyState, Skeleton } from '../../components/ui/Feedback';
 import { Modal, ConfirmDialog } from '../../components/ui/Overlay';
 import Button from '../../components/ui/Button';
+import { useLiveRefresh } from '../../context/RealtimeContext';
 
 const EMPTY = { title: '', industry: '', description: '', positions: [], active: true, sortOrder: 0 };
 
@@ -129,7 +130,18 @@ export default function Roles() {
   const [active, setActive] = useState('');
   const q = useDebounced(search);
   const { data, loading, error, reload } = useApi('/roles', { search: q || undefined, industry: industry || undefined, active: active || undefined });
+  useLiveRefresh(['roles', 'applications'], reload);
   const [editing, setEditing] = useState(null); // null | 'new' | role
+  // Opened from the dashboard's "New" menu (?new=1)
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setEditing('new');
+      const next = new URLSearchParams(searchParams);
+      next.delete('new');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   const [deleting, setDeleting] = useState(null);
   const [busy, setBusy] = useState(false);
   const [toggling, setToggling] = useState(null);

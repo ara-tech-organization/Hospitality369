@@ -1,5 +1,6 @@
 /* Integration tests – run with `npm test` (uses a separate *_test database) */
 process.env.NODE_ENV = 'test';
+process.env.FEATURE_REFERRALS = 'true'; // this suite also covers the (currently switched-off) referral programme
 process.env.LOCAL_STORAGE_DIR = 'storage/test-resumes';
 
 const { test, before, after, describe } = require('node:test');
@@ -101,6 +102,49 @@ describe('public', () => {
     assert.equal(dup.status, 409);
   });
 
+  test('position is optional for listed roles', async () => {
+    const res = await apply({ ...base(), email: 'nopos@example.com', mobile: '+447700900201', position: '' });
+    assert.equal(res.status, 201, res.body.message);
+  });
+
+  test('"Others" requires a typed role and is stored without a role id', async () => {
+    const missing = await apply({ ...base(), email: 'other1@example.com', mobile: '+447700900301', role: 'other', position: '' });
+    assert.equal(missing.status, 400);
+    assert.ok(missing.body.details.fields.position);
+
+    const ok = await apply({ ...base(), email: 'other2@example.com', mobile: '+447700900302', role: 'other', position: 'Sommelier' });
+    assert.equal(ok.status, 201, ok.body.message);
+    assert.match(ok.body.message, /Sommelier/);
+    const doc = await Application.findOne({ email: 'other2@example.com' });
+    assert.equal(doc.role, null);
+    assert.equal(doc.roleTitle, 'Others');
+    assert.equal(doc.position, 'Sommelier');
+
+    // same person + same typed role is a duplicate; a different typed role is fine
+    const dup = await apply({ ...base(), email: 'other2@example.com', mobile: '+447700900302', role: 'other', position: 'sommelier' });
+    assert.equal(dup.status, 409);
+    const other = await apply({ ...base(), email: 'other2@example.com', mobile: '+447700900302', role: 'other', position: 'Barista' });
+    assert.equal(other.status, 201);
+  });
+
+  test('rejects an unknown role value', async () => {
+    const res = await apply({ ...base(), email: 'bad@example.com', role: 'not-a-role' });
+    assert.equal(res.status, 400);
+    assert.ok(res.body.details.fields.role);
+  });
+
+  test('contact form validates and stores a contact enquiry', async () => {
+    const bad = await request(app).post('/api/public/contact').send({ name: 'A', email: 'x', topic: 'Nope', message: 'hi' });
+    assert.equal(bad.status, 400);
+    assert.ok(bad.body.details.fields.topic && bad.body.details.fields.message && bad.body.details.fields.email);
+    const ok = await request(app).post('/api/public/contact').send({ name: 'Meera Nair', email: 'meera@example.com', company: 'Lotus Hotels', topic: 'Hiring staff', message: 'We need 12 banquet servers for December.' });
+    assert.equal(ok.status, 201);
+    const list = await superAgent.get('/api/enquiries').query({ module: 'contact' });
+    assert.equal(list.status, 200);
+    assert.equal(list.body.items[0].topic, 'Hiring staff');
+    assert.equal(list.body.items[0].company, 'Lotus Hotels');
+  });
+
   test('awards referral points and blocks self-referral', async () => {
     const join = await request(app).post('/api/public/referrals/join').send({ name: 'Ref Errer', email: 'ref@example.com' });
     assert.equal(join.status, 201);
@@ -172,6 +216,13 @@ describe('management', () => {
     assert.equal(bad.status, 400);
   });
 
+  test('filters candidates who chose "Others"', async () => {
+    const res = await superAgent.get('/api/applications').query({ role: 'other', limit: 50 });
+    assert.equal(res.status, 200);
+    assert.ok(res.body.items.length >= 2);
+    assert.ok(res.body.items.every((a) => a.roleTitle === 'Others' && a.position));
+  });
+
   test('status change pays shortlist referral bonus once', async () => {
     const appDoc = await Application.findOne({ email: 'friend@example.com' });
     await superAgent.patch(`/api/applications/${appDoc._id}/status`).send({ status: 'shortlisted' });
@@ -188,6 +239,20 @@ describe('management', () => {
     });
     assert.equal(res.status, 200);
     assert.equal(res.body.subarray(0, 2).toString(), 'PK');
+  });
+
+  test('exports PDF and returns per-status counts', async () => {
+    const pdf = await superAgent.get('/api/applications/export.pdf').query({ scope: 'all' }).buffer(true).parse((r, cb) => {
+      const chunks = [];
+      r.on('data', (c) => chunks.push(c));
+      r.on('end', () => cb(null, Buffer.concat(chunks)));
+    });
+    assert.equal(pdf.status, 200);
+    assert.equal(pdf.headers['content-type'], 'application/pdf');
+    assert.equal(pdf.body.subarray(0, 5).toString(), '%PDF-');
+    const list = await superAgent.get('/api/applications').query({ status: 'hired' });
+    assert.equal(typeof list.body.statusCounts.new, 'number');
+    assert.ok(list.body.statusCounts.new > 0, 'counts ignore the active status filter');
   });
 
   test('new roles appear on the public form; roles with applications cannot be deleted', async () => {

@@ -43,6 +43,12 @@
       "description": "How Hospitality369 collects, uses and protects candidate information and CVs.",
       "priority": "0.3",
       "changefreq": "yearly"
+    },
+    "/contact": {
+      "title": "Contact Hospitality369 | Hospitality Recruitment in Chennai",
+      "description": "Talk to Hospitality369 about hiring hotel, restaurant, bar and banquet staff, finding your next hospitality job, or mentoring, training and coaching. Based in West Mambalam, Chennai.",
+      "priority": "0.7",
+      "changefreq": "monthly"
     }
   }
 }

@@ -17,10 +17,13 @@ const applicationSchema = new mongoose.Schema(
     fullName: { type: String, required: true, trim: true, maxlength: 100 },
     email: { type: String, required: true, lowercase: true, trim: true, maxlength: 254 },
     mobile: { type: String, required: true, trim: true, maxlength: 20 },
-    role: { type: mongoose.Schema.Types.ObjectId, ref: 'JobRole', required: true },
+    // null when the candidate chose "Others" (their role isn't in the list)
+    role: { type: mongoose.Schema.Types.ObjectId, ref: 'JobRole', default: null },
     roleTitle: { type: String, required: true }, // snapshot, survives role renames/deletion
     industry: String,
-    position: { type: String, required: true, trim: true, maxlength: 80 },
+    // Free-text role/position – required only for "Others" applications
+    position: { type: String, trim: true, maxlength: 80, default: '' },
+    isOtherRole: { type: Boolean, default: false },
     resume: {
       driver: { type: String, required: true },
       key: { type: String, required: true },

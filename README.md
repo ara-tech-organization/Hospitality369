@@ -75,6 +75,19 @@ hospitality369/
 - **Menu:** Gallery (`/gallery`) and Contact Us (`/contact`) are in the main menu and footer. Their pages are not built yet, so the links currently show the 404 page.
 - **Company content:** taken from hospitality369.in (about text, services, stats, client names, Chennai contact details) and kept in [content/site.js](client/src/content/site.js).
 
+### Live dashboard (WebSockets)
+
+The dashboard updates itself in real time over Socket.IO (`server/src/realtime.js`, `client/src/context/RealtimeContext.jsx`) – no manual refresh needed. New applications, status changes, enquiries/messages, role, admin and audit-log changes are pushed to open dashboards, which re-fetch only the affected data; new applications and enquiries also pop up a notification. A **Live** pill in the top bar shows the connection state.
+
+- Sockets authenticate with the same httpOnly session cookie as the API; anonymous connections are refused.
+- Events are routed by permission, so candidate names are only sent to staff who may view candidates.
+- When an admin's permissions change, or they are deactivated or deleted, their live connection is dropped and re-checked.
+- **Deployment:** if the app runs behind a reverse proxy (Nginx, a load balancer), it must forward WebSocket upgrades for `/socket.io` (in Nginx: `proxy_http_version 1.1; proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade";`). If WebSockets are blocked, Socket.IO falls back to long-polling automatically.
+
+### Feature switches
+
+- **Referral programme (Refer & Earn): currently OFF.** The referral pages, menu links, dashboard section, settings card, API routes and the referral-code field on the application form are all disabled, and new applications don't create referral codes. The code and any existing referral data are kept, so it can be revised and switched back on once requirements are agreed. To turn it on, set `FEATURE_REFERRALS=true` in `server/.env` **and** `VITE_FEATURE_REFERRALS=true` in `client/.env`, then rebuild the client.
+
 ### Security model
 
 - **Sessions**: JWT in an `httpOnly`, `SameSite=Strict` cookie (`Secure` in production). Tokens carry a `tokenVersion`, so logging out, changing a password, a password reset or deactivating an admin revokes every existing session at once.

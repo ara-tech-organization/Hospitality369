@@ -27,6 +27,10 @@ module.exports = {
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '8h',
   cookieName: 'h369_session',
+  /** Feature switches. Referral programme is OFF until its requirements are finalised. */
+  features: {
+    referrals: process.env.FEATURE_REFERRALS === 'true',
+  },
   superAdmin: {
     name: process.env.SUPERADMIN_NAME || 'Super Admin',
     email: process.env.SUPERADMIN_EMAIL,

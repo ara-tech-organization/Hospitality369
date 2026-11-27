@@ -9,8 +9,9 @@ const storage = require('../services/storage');
 const referralService = require('../services/referral.service');
 const ApiError = require('../utils/ApiError');
 const env = require('../config/env');
-const { asyncHandler, normalizeMobile, maskName, clientIp } = require('../utils/helpers');
-const { PROGRAM_MODULES } = require('../constants');
+const { asyncHandler, normalizeMobile, maskName, clientIp, escapeRegex } = require('../utils/helpers');
+const { PROGRAM_MODULES, OTHER_ROLE, OTHER_ROLE_TITLE, CONTACT_TOPICS, PERMISSIONS } = require('../constants');
+const realtime = require('../realtime');
 
 /* ----------------------------- validation ----------------------------- */
 
@@ -44,11 +45,16 @@ const schemas = {
     fullName: name,
     email,
     mobile,
-    role: objectId,
-    position: z.string({ required_error: 'Position is required' }).trim().min(2, 'Select or enter a position').max(80),
+    // a listed role id, or "other" when the candidate's role isn't listed
+    role: z.union([objectId, z.literal(OTHER_ROLE)], { errorMap: () => ({ message: 'Select the role you are applying for' }) }),
+    position: z.string().trim().max(80, 'Keep this under 80 characters').optional().or(z.literal('')),
     consent: z.preprocess((v) => v === true || v === 'true' || v === 'on', z.literal(true, { errorMap: () => ({ message: 'Please accept the privacy notice' }) })),
     referralCode: z.string().trim().toUpperCase().max(20).optional().or(z.literal('')),
     website: z.string().max(0, 'Bot detected').optional().or(z.literal('')), // honeypot
+  }).superRefine((v, ctx) => {
+    if (v.role === OTHER_ROLE && (!v.position || v.position.length < 2)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['position'], message: 'Enter the role or position you are applying for' });
+    }
   }),
   join: z.object({
     name,
@@ -70,6 +76,15 @@ const schemas = {
     message: z.string().trim().max(1500).optional().or(z.literal('')),
     website: z.string().max(0).optional().or(z.literal('')),
   }),
+  contact: z.object({
+    name,
+    email,
+    mobile: mobile.optional().or(z.literal('')),
+    company: z.string().trim().max(120).optional().or(z.literal('')),
+    topic: z.enum(CONTACT_TOPICS, { errorMap: () => ({ message: 'Choose what you would like to talk about' }) }),
+    message: z.string().trim().min(10, 'Tell us a little more (at least 10 characters)').max(1500),
+    website: z.string().max(0).optional().or(z.literal('')), // honeypot
+  }),
 };
 
 /* ------------------------------ handlers ------------------------------ */
@@ -82,12 +97,13 @@ const config = asyncHandler(async (_req, res) => {
       acceptingApplications: s.applications.accepting,
       maxResumeMb: Math.round(env.storage.maxResumeBytes / 1048576),
       referral: {
-        enabled: s.referral.enabled,
+        enabled: env.features.referrals && s.referral.enabled,
         pointsOnApplication: s.referral.pointsOnApplication,
         pointsOnShortlist: s.referral.pointsOnShortlist,
         pointsOnHire: s.referral.pointsOnHire,
       },
       contact: s.site,
+      contactTopics: CONTACT_TOPICS,
     },
   });
 });
@@ -107,12 +123,18 @@ const submitApplication = asyncHandler(async (req, res) => {
   }
 
   const data = req.body;
-  const role = await JobRole.findOne({ _id: data.role, active: true });
-  if (!role) throw ApiError.badRequest('The selected role is no longer available', { fields: { role: 'Select an available role' } });
-
-  if (role.positions.length && !role.positions.includes(data.position)) {
-    throw ApiError.badRequest('Select a valid position for this role', { fields: { position: 'Select a valid position' } });
+  const isOther = data.role === OTHER_ROLE;
+  let role = null;
+  if (!isOther) {
+    role = await JobRole.findOne({ _id: data.role, active: true });
+    if (!role) throw ApiError.badRequest('The selected role is no longer available', { fields: { role: 'Select an available role' } });
+    // Position is optional for listed roles; if one is sent it must belong to the role
+    if (data.position && role.positions.length && !role.positions.includes(data.position)) {
+      throw ApiError.badRequest('Select a valid position for this role', { fields: { position: 'Select a valid position' } });
+    }
   }
+  const roleTitle = isOther ? OTHER_ROLE_TITLE : role.title;
+  const appliedFor = isOther ? data.position : role.title;
 
   const mobileNorm = normalizeMobile(data.mobile);
 
@@ -121,13 +143,15 @@ const submitApplication = asyncHandler(async (req, res) => {
   if (windowDays > 0) {
     const since = new Date(Date.now() - windowDays * 86400000);
     const dup = await Application.exists({
-      role: role._id,
+      ...(isOther
+        ? { role: null, position: new RegExp(`^${escapeRegex(data.position)}$`, 'i') }
+        : { role: role._id }),
       createdAt: { $gte: since },
       $or: [{ email: data.email }, { mobile: mobileNorm }],
     });
     if (dup) {
       throw ApiError.conflict(
-        `You have already applied for ${role.title} recently. Our team is reviewing your application – you can apply for this role again after ${windowDays} days.`
+        `You have already applied for ${appliedFor} recently. Our team is reviewing your application – you can apply for this role again after ${windowDays} days.`
       );
     }
   }
@@ -140,10 +164,11 @@ const submitApplication = asyncHandler(async (req, res) => {
       fullName: data.fullName,
       email: data.email,
       mobile: mobileNorm,
-      role: role._id,
-      roleTitle: role.title,
-      industry: role.industry,
-      position: data.position,
+      role: role ? role._id : null,
+      roleTitle,
+      industry: role ? role.industry : undefined,
+      position: data.position || '',
+      isOtherRole: isOther,
       consent: true,
       resume: {
         driver: storage.name(),
@@ -160,9 +185,9 @@ const submitApplication = asyncHandler(async (req, res) => {
     throw err;
   }
 
-  // Referral credit (never blocks the application)
+  // Referral credit (never blocks the application) – only when the programme is switched on
   let referralApplied = false;
-  if (data.referralCode) {
+  if (env.features.referrals && data.referralCode) {
     try {
       const referral = await referralService.recordReferral(application, data.referralCode);
       referralApplied = referral?.status === 'valid';
@@ -173,7 +198,7 @@ const submitApplication = asyncHandler(async (req, res) => {
 
   // Enrol the candidate into the referral programme so they can refer friends
   let myReferral = null;
-  if (settings.referral.enabled) {
+  if (env.features.referrals && settings.referral.enabled) {
     try {
       const { referrer, created } = await referralService.enrol({
         name: data.fullName,
@@ -187,10 +212,14 @@ const submitApplication = asyncHandler(async (req, res) => {
     }
   }
 
+  // Live dashboard: everyone refreshes counts; only candidate viewers get the name
+  realtime.changed(['applications']);
+  realtime.notify(PERMISSIONS.CANDIDATES_VIEW, 'application:created', { id: String(application._id), name: data.fullName, appliedFor });
+
   res.status(201).json({
     success: true,
-    message: `Thank you, ${data.fullName.split(' ')[0]}! Your application for ${role.title} has been received.`,
-    application: { id: application._id, reference: String(application._id).slice(-8).toUpperCase(), role: role.title, position: data.position },
+    message: `Thank you, ${data.fullName.split(' ')[0]}! Your application for ${appliedFor} has been received.`,
+    application: { id: application._id, reference: String(application._id).slice(-8).toUpperCase(), role: roleTitle, position: data.position || roleTitle },
     referralApplied,
     myReferral,
   });
@@ -289,12 +318,33 @@ const submitEnquiry = asyncHandler(async (req, res) => {
     currentRole: data.currentRole,
     message: data.message,
   });
+  realtime.changed(['enquiries'], PERMISSIONS.ENQUIRIES_VIEW);
+  realtime.notify(PERMISSIONS.ENQUIRIES_VIEW, 'enquiry:created', { name: data.name, source: data.module });
   res.status(201).json({ success: true, message: 'Thank you! A programme advisor will contact you within 2 working days.' });
+});
+
+const submitContact = asyncHandler(async (req, res) => {
+  const data = req.body;
+  const recent = await Enquiry.countDocuments({ email: data.email, module: 'contact', createdAt: { $gte: new Date(Date.now() - 86400000) } });
+  if (recent >= 3) throw ApiError.conflict('We have already received your messages today – our team will reply shortly.');
+  await Enquiry.create({
+    module: 'contact',
+    topic: data.topic,
+    company: data.company || undefined,
+    name: data.name,
+    email: data.email,
+    mobile: data.mobile ? normalizeMobile(data.mobile) : undefined,
+    message: data.message,
+  });
+  realtime.changed(['enquiries'], PERMISSIONS.ENQUIRIES_VIEW);
+  realtime.notify(PERMISSIONS.ENQUIRIES_VIEW, 'enquiry:created', { name: data.name, source: 'contact', topic: data.topic });
+  res.status(201).json({ success: true, message: `Thanks, ${data.name.split(' ')[0]}! Your message is with our team – we'll get back to you soon.` });
 });
 
 module.exports = {
   schemas,
   config,
+  submitContact,
   listRoles,
   submitApplication,
   joinReferral,

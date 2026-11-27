@@ -5,6 +5,7 @@ import { formatDateTime } from '../../lib/format';
 import { PageHeader, Pagination } from '../../components/ui/Data';
 import { Input, Select } from '../../components/ui/Form';
 import { Alert, Badge, EmptyState, Skeleton } from '../../components/ui/Feedback';
+import { useLiveRefresh } from '../../context/RealtimeContext';
 
 const toneFor = (action) => {
   if (/deleted|rejected|deactivated|suspended/.test(action)) return 'red';
@@ -19,7 +20,8 @@ export default function AuditLogs() {
   const [action, setAction] = useState('');
   const [page, setPage] = useState(1);
   const q = useDebounced(search);
-  const { data, loading, error } = useApi('/audit-logs', { search: q || undefined, action: action || undefined, page });
+  const { data, loading, error, reload } = useApi('/audit-logs', { search: q || undefined, action: action || undefined, page });
+  useLiveRefresh(['audit'], reload);
 
   return (
     <>

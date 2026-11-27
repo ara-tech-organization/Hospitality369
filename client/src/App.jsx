@@ -12,7 +12,9 @@ import Recruiting from './pages/public/Recruiting';
 import ProgramPage from './pages/public/ProgramPage';
 import Referrals from './pages/public/Referrals';
 import Privacy from './pages/public/Privacy';
+import Contact from './pages/public/Contact';
 import NotFound from './pages/public/NotFound';
+import { REFERRALS_ENABLED } from './lib/features';
 
 // Dashboard is code-split so public pages stay fast
 const Login = lazy(() => import('./pages/auth/Login'));
@@ -46,8 +48,9 @@ export default function App() {
           <Route path="mentoring" element={<ProgramPage key="mentoring" module="mentoring" />} />
           <Route path="training" element={<ProgramPage key="training" module="training" />} />
           <Route path="coaching" element={<ProgramPage key="coaching" module="coaching" />} />
-          <Route path="referrals" element={<Referrals />} />
+          {REFERRALS_ENABLED && <Route path="referrals" element={<Referrals />} />}
           <Route path="privacy" element={<Privacy />} />
+          <Route path="contact" element={<Contact />} />
           <Route path="*" element={<NotFound />} />
         </Route>
 
@@ -58,7 +61,7 @@ export default function App() {
             <Route index element={<DashboardHome />} />
             <Route path="candidates" element={<RequirePermission perm={P.CANDIDATES_VIEW}><Candidates /></RequirePermission>} />
             <Route path="roles" element={<RequirePermission perm={P.ROLES_MANAGE}><Roles /></RequirePermission>} />
-            <Route path="referrals" element={<RequirePermission perm={P.REFERRALS_MANAGE}><ReferralAdmin /></RequirePermission>} />
+            {REFERRALS_ENABLED && <Route path="referrals" element={<RequirePermission perm={P.REFERRALS_MANAGE}><ReferralAdmin /></RequirePermission>} />}
             <Route path="enquiries" element={<RequirePermission perm={P.ENQUIRIES_VIEW}><Enquiries /></RequirePermission>} />
             <Route path="admins" element={<RequirePermission superAdmin><Admins /></RequirePermission>} />
             <Route path="settings" element={<RequirePermission superAdmin><Settings /></RequirePermission>} />

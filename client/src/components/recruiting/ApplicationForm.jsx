@@ -1,15 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { User, Mail, Phone, Send, CheckCircle2, Copy, Gift, RotateCcw, Tag } from 'lucide-react';
+import { User, Mail, Phone, Send, CheckCircle2, Copy, Gift, RotateCcw, Tag, Briefcase } from 'lucide-react';
 import api, { errorMessage, fieldErrors } from '../../lib/api';
 import { INDUSTRY_LABEL } from '../../lib/constants';
+import { cx } from '../../lib/format';
 import { Input, Select, Checkbox } from '../ui/Form';
 import { Alert } from '../ui/Feedback';
 import FileDrop from '../ui/FileDrop';
 import Button from '../ui/Button';
 import { useToast } from '../../context/ToastContext';
+import { REFERRALS_ENABLED } from '../../lib/features';
+import SuccessDialog from './SuccessDialog';
 
 const EMPTY = { fullName: '', email: '', mobile: '', role: '', position: '', referralCode: '', consent: false, website: '' };
+/** Role value for candidates whose role isn't listed – reveals the free-text field */
+export const OTHER_ROLE = 'other';
 const NAME_RX = /^[\p{L}\p{M}' .-]+$/u;
 const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const MOBILE_RX = /^\+?[0-9 ()-]{7,20}$/;
@@ -25,7 +30,7 @@ function validate(v, file, role) {
   if (!v.mobile.trim()) e.mobile = 'Mobile number is required';
   else if (!MOBILE_RX.test(v.mobile.trim()) || digits < 8 || digits > 15) e.mobile = 'Enter a valid mobile number (8–15 digits)';
   if (!v.role) e.role = 'Select the role you are applying for';
-  if (!v.position.trim()) e.position = role?.positions?.length ? 'Select a position' : 'Enter the position';
+  if (v.role === OTHER_ROLE && v.position.trim().length < 2) e.position = 'Enter the role or position you are applying for';
   if (!file) e.resume = 'Please attach your CV/Resume';
   if (!v.consent) e.consent = 'Please accept the privacy notice to continue';
   return e;
@@ -47,6 +52,7 @@ export default function ApplicationForm({ initialRole, initialRef, maxMb = 5, ac
   const [uploadStatus, setUploadStatus] = useState('idle');
   const [formError, setFormError] = useState('');
   const [result, setResult] = useState(null);
+  const [popupOpen, setPopupOpen] = useState(false);
   const [referrer, setReferrer] = useState(null);
   const [roles, setRoles] = useState([]);
   const [rolesLoading, setRolesLoading] = useState(true);
@@ -77,7 +83,7 @@ export default function ApplicationForm({ initialRole, initialRef, maxMb = 5, ac
     const digits = values.mobile.replace(/\D/g, '').length;
     onProgress({
       personal: values.fullName.trim().length >= 2 && EMAIL_RX.test(values.email.trim()) && digits >= 8 && digits <= 15,
-      role: Boolean(values.role && values.position.trim()),
+      role: Boolean(values.role && (values.role !== OTHER_ROLE || values.position.trim().length >= 2)),
       cv: Boolean(file),
       consent: values.consent,
       submitted: Boolean(result),
@@ -95,13 +101,13 @@ export default function ApplicationForm({ initialRole, initialRef, maxMb = 5, ac
 
   // If a deep-linked role is no longer available, clear it
   useEffect(() => {
-    if (!rolesLoading && values.role && !role) setValues((v) => ({ ...v, role: '', position: '' }));
+    if (!rolesLoading && values.role && values.role !== OTHER_ROLE && !role) setValues((v) => ({ ...v, role: '', position: '' }));
   }, [rolesLoading, role, values.role]);
 
   // Validate referral code against the API
   useEffect(() => {
     const code = values.referralCode.trim();
-    if (code.length < 6) {
+    if (!REFERRALS_ENABLED || code.length < 6) {
       setReferrer(null);
       return undefined;
     }
@@ -162,7 +168,7 @@ export default function ApplicationForm({ initialRole, initialRef, maxMb = 5, ac
       setProgress(100);
       setUploadStatus('done');
       setResult(data);
-      toast.success('Application submitted successfully');
+      setPopupOpen(true);
       sessionStorage.removeItem('h369_ref');
       window.scrollTo({ top: document.getElementById('apply')?.offsetTop - 100 || 0, behavior: 'smooth' });
     } catch (err) {
@@ -183,6 +189,7 @@ export default function ApplicationForm({ initialRole, initialRef, maxMb = 5, ac
     setUploadStatus('idle');
     setProgress(0);
     setResult(null);
+    setPopupOpen(false);
     setFormError('');
   };
 
@@ -195,8 +202,10 @@ export default function ApplicationForm({ initialRole, initialRef, maxMb = 5, ac
         toast.error('Could not copy – please copy it manually');
       }
     };
+    const popup = <SuccessDialog open={popupOpen} result={result} onClose={() => setPopupOpen(false)} onApplyAgain={reset} />;
     return (
       <div className="animate-scale-in text-center">
+        {popup}
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 ring-8 ring-emerald-50/50">
           <CheckCircle2 className="h-8 w-8 text-emerald-600" aria-hidden />
         </div>
@@ -206,9 +215,9 @@ export default function ApplicationForm({ initialRole, initialRef, maxMb = 5, ac
           <div className="rounded-2xl bg-navy-50 p-4"><dt className="text-xs text-navy-400">Reference</dt><dd className="mt-1 font-mono text-sm font-semibold text-navy-900">{result.application.reference}</dd></div>
           <div className="rounded-2xl bg-navy-50 p-4"><dt className="text-xs text-navy-400">Role</dt><dd className="mt-1 truncate text-sm font-semibold text-navy-900">{result.application.position}</dd></div>
         </dl>
-        {result.referralApplied && <p className="mt-4 text-sm font-medium text-emerald-700">Your referral has been credited – thank you!</p>}
+        {REFERRALS_ENABLED && result.referralApplied && <p className="mt-4 text-sm font-medium text-emerald-700">Your referral has been credited – thank you!</p>}
 
-        {result.myReferral?.code && (
+        {REFERRALS_ENABLED && result.myReferral?.code && (
           <div className="mx-auto mt-8 max-w-md rounded-2xl border border-brand-200 bg-brand-50 p-5 text-left">
             <p className="flex items-center gap-2 text-sm font-semibold text-navy-900"><Gift className="h-4 w-4 text-brand-600" aria-hidden /> Refer friends & earn points</p>
             <p className="mt-1 text-xs text-navy-500">Your personal code is <span className="font-mono font-semibold text-navy-900">{result.myReferral.code}</span>. Keep it safe – you'll need it with your email to check your points.</p>
@@ -247,7 +256,7 @@ export default function ApplicationForm({ initialRole, initialRef, maxMb = 5, ac
         <Input label="Mobile number" required type="tel" icon={Phone} autoComplete="tel" inputMode="tel" placeholder="+91 98765 43210" value={values.mobile} onChange={set('mobile')} onBlur={blur('mobile')} error={shown('mobile')} maxLength={20} hint="Include your country code" />
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="space-y-5">
         <Select
           label="Role applying for"
           required
@@ -263,21 +272,40 @@ export default function ApplicationForm({ initialRole, initialRef, maxMb = 5, ac
               {list.map((r) => <option key={r._id} value={r._id}>{r.title}</option>)}
             </optgroup>
           ))}
+          {!rolesLoading && !rolesError && (
+            <optgroup label="Can't find your role?">
+              <option value={OTHER_ROLE}>Others</option>
+            </optgroup>
+          )}
         </Select>
 
-        {role?.positions?.length ? (
-          <Select label="Position" required value={values.position} onChange={set('position')} onBlur={blur('position')} error={shown('position')} placeholder="Select a position">
-            {role.positions.map((p) => <option key={p} value={p}>{p}</option>)}
-          </Select>
-        ) : (
-          <Input label="Position" required placeholder={values.role ? 'e.g. Senior / Supervisor' : 'Select a role first'} disabled={!values.role} value={values.position} onChange={set('position')} onBlur={blur('position')} error={shown('position')} maxLength={80} />
-        )}
+        {/* Free-text role/position – only for "Others", where it becomes required */}
+        <div className={cx('grid transition-all duration-500 ease-out', values.role === OTHER_ROLE ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0')}>
+          <div className="overflow-hidden">
+            {values.role === OTHER_ROLE && (
+              <Input
+                label="Role / position you are applying for"
+                required
+                autoFocus
+                icon={Briefcase}
+                placeholder="e.g. Sommelier, Spa Therapist, Barista"
+                value={values.position}
+                onChange={set('position')}
+                onBlur={blur('position')}
+                error={shown('position')}
+                maxLength={80}
+                hint="Tell us the role you're looking for – our team will match you."
+              />
+            )}
+          </div>
+        </div>
       </div>
       {rolesError && <button type="button" onClick={loadRoles} className="text-sm font-semibold text-brand-700 underline">Retry loading roles</button>}
       {role?.description && <p className="-mt-2 rounded-xl bg-navy-50/70 px-4 py-3 text-[13px] text-navy-500">{role.description}</p>}
 
       <FileDrop file={file} onChange={onFile} error={shown('resume')} maxMb={maxMb} status={uploadStatus} progress={progress} disabled={submitting} />
 
+      {REFERRALS_ENABLED && (
       <Input
         label="Referral code (optional)"
         icon={Tag}
@@ -287,6 +315,7 @@ export default function ApplicationForm({ initialRole, initialRef, maxMb = 5, ac
         maxLength={20}
         hint={referrer?.name ? `✓ Referred by ${referrer.name}` : referrer?.invalid ? 'This code was not recognised – you can still apply' : 'Were you referred by someone? Enter their code.'}
       />
+      )}
 
       <Checkbox checked={values.consent} onChange={(c) => { set('consent')(c); setTouched((t) => ({ ...t, consent: true })); }} error={shown('consent')}>
         I agree that Hospitality369 may store and process my details and CV for recruitment purposes, as described in the{' '}

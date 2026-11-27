@@ -1,20 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight, ArrowUpRight, ArrowLeft, Hotel, UtensilsCrossed, Wine, PartyPopper, Plus, Phone, MapPin, Gift, ChefHat, BedDouble,
-  Lightbulb, Store, ConciergeBell, Check,
+  ArrowRight, ArrowUpRight, Hotel, UtensilsCrossed, Wine, PartyPopper, Plus, Phone, MapPin, Gift, ChefHat, BedDouble,
+  Lightbulb, Store, ConciergeBell, Check, Briefcase,
 } from 'lucide-react';
 import Seo from '../../components/seo/Seo';
 import Button from '../../components/ui/Button';
 import Index from '../../components/ui/SectionIndex';
 import {
-  Reveal, CountUp, RotatingWords, Magnetic, LineReveal, useParallax, parallax, CircularText, Tilt,
+  Reveal, CountUp, RotatingWords, Magnetic, LineReveal, useParallax, parallax, CircularText, Tilt, SpotlightCard,
 } from '../../components/motion';
 import { useApi } from '../../hooks/useApi';
 import { usePublicConfig } from '../../hooks/usePublicConfig';
 import { INDUSTRY_LABEL } from '../../lib/constants';
 import { cx } from '../../lib/format';
 import { COMPANY, SERVICES, FEATURED_SERVICES, IMAGES, INDUSTRY_IMAGE } from '../../content/site';
+import { REFERRALS_ENABLED } from '../../lib/features';
 
 /** FAQ section is built but hidden for now – flip to true to show it (and its FAQPage structured data). */
 const SHOW_FAQ = false;
@@ -24,7 +25,6 @@ const FAQ = [
   ['How do I apply for a hospitality job?', 'Go to Recruiting, choose the role and position you want, fill in your name, email and mobile number and upload your CV as a PDF, DOC or DOCX. It takes about three minutes.'],
   ['Is my CV kept private?', 'Yes. CVs are stored in private storage and can only be opened by authorised members of our recruitment team. Every download is logged.'],
   ['Can I apply for more than one role?', 'Absolutely – you can apply for any number of different roles. To keep things fair, repeat applications for the same role are limited for a short period.'],
-  ['How does the referral programme work?', 'Join for free, share your personal link, and earn points when the people you refer apply, get shortlisted and get hired.'],
 ];
 
 /* ============================== small parts ============================== */
@@ -401,74 +401,143 @@ function Services() {
   );
 }
 
-/* =========================== ROLES – CAROUSEL =========================== */
+/* ======================= OPEN ROLES – PROFESSIONAL EXPLORER ======================= */
+/* Sticky industry navigator (left) + premium role cards (right). */
 
-function RolesCarousel() {
+const EXPLORER_INDUSTRIES = [
+  { value: 'all', label: 'All roles', image: IMAGES.hotel },
+  { value: 'hotel', label: 'Hotels & resorts', image: INDUSTRY_IMAGE.hotel },
+  { value: 'restaurant', label: 'Restaurants', image: INDUSTRY_IMAGE.restaurant },
+  { value: 'bar', label: 'Bars & lounges', image: INDUSTRY_IMAGE.bar },
+  { value: 'banquet', label: 'Banquets & events', image: INDUSTRY_IMAGE.banquet },
+];
+const EXPLORER_ICON = { hotel: Hotel, restaurant: UtensilsCrossed, bar: Wine, banquet: PartyPopper };
+
+function RoleCard({ role, n }) {
+  const Icon = EXPLORER_ICON[role.industry] || Briefcase;
+  const positions = role.positions.length ? role.positions : ['Open position'];
+  return (
+    <SpotlightCard
+      as={Link}
+      to={`/recruiting?role=${role._id}#apply`}
+      className="group card relative flex h-full flex-col overflow-hidden rounded-[24px] p-6 transition-all duration-500 hover:-translate-y-1 hover:shadow-lift"
+    >
+      {/* left accent bar grows on hover */}
+      <span className="absolute left-0 top-6 h-10 w-1 rounded-r-full bg-gradient-to-b from-brand-400 to-brand-600 transition-all duration-500 group-hover:top-0 group-hover:h-full" aria-hidden />
+
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-navy-50 text-navy-700 transition-colors duration-500 group-hover:bg-navy-950 group-hover:text-brand-300">
+            <Icon className="h-5 w-5" aria-hidden />
+          </span>
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[.16em] text-brand-600">{INDUSTRY_LABEL[role.industry]}</p>
+            <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" aria-hidden /> Now hiring
+            </p>
+          </div>
+        </div>
+        <span className="font-display text-sm font-bold tabular-nums text-navy-200 transition-colors group-hover:text-brand-400">{String(n).padStart(2, '0')}</span>
+      </div>
+
+      <h3 className="mt-5 font-display text-[22px] font-semibold leading-snug text-navy-950">{role.title}</h3>
+      <p className="mt-1 text-sm text-navy-500">{role.positions.length || 1} position{role.positions.length === 1 ? '' : 's'} open</p>
+
+      <ul className="mb-5 mt-4 flex flex-wrap gap-1.5">
+        {positions.slice(0, 3).map((p) => (
+          <li key={p} className="rounded-lg bg-mist px-2.5 py-1 text-[12px] font-medium text-navy-600 ring-1 ring-navy-100">{p}</li>
+        ))}
+        {positions.length > 3 && <li className="rounded-lg px-2 py-1 text-[12px] font-semibold text-navy-400">+{positions.length - 3} more</li>}
+      </ul>
+
+      <div className="mt-auto flex items-center justify-between border-t border-navy-100 pt-4">
+        <span className="text-sm font-semibold text-navy-900 transition-colors group-hover:text-brand-600">Apply now</span>
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-navy-50 text-navy-700 transition-all duration-500 group-hover:rotate-[-45deg] group-hover:bg-brand-500 group-hover:text-white">
+          <ArrowRight className="h-4 w-4" aria-hidden />
+        </span>
+      </div>
+    </SpotlightCard>
+  );
+}
+
+function RolesExplorer() {
   const { data, loading } = useApi('/public/roles');
-  const roles = data?.roles || [];
-  const track = useRef(null);
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    const el = track.current;
-    if (!el) return undefined;
-    const on = () => setProgress(el.scrollWidth > el.clientWidth ? el.scrollLeft / (el.scrollWidth - el.clientWidth) : 1);
-    on();
-    el.addEventListener('scroll', on, { passive: true });
-    return () => el.removeEventListener('scroll', on);
-  }, [roles.length]);
-
-  const scroll = (dir) => track.current?.scrollBy({ left: dir * 360, behavior: 'smooth' });
+  const roles = useMemo(() => data?.roles || [], [data]);
+  const [filter, setFilter] = useState('all');
+  const counts = useMemo(() => {
+    const c = { all: roles.length };
+    roles.forEach((r) => { c[r.industry] = (c[r.industry] || 0) + 1; });
+    return c;
+  }, [roles]);
+  const tabs = EXPLORER_INDUSTRIES.filter((t) => t.value === 'all' || counts[t.value]);
+  const shown = filter === 'all' ? roles : roles.filter((r) => r.industry === filter);
 
   return (
-    <section id="open-roles" className="scroll-mt-16 bg-mist py-24" aria-labelledby="roles-heading">
-      <div className="container-page flex flex-col justify-between gap-8 md:flex-row md:items-end">
-        <Reveal>
-          <Index n="01" label="Open roles" />
-          <h2 id="roles-heading" className="mt-6 text-4xl font-semibold leading-[1.02] tracking-[-.04em] sm:text-6xl">Hiring <span className="brand-text">right now.</span></h2>
-        </Reveal>
-        <Reveal delay={100} className="flex items-center gap-3">
-          <button type="button" onClick={() => scroll(-1)} className="flex h-14 w-14 items-center justify-center rounded-full border border-navy-200 bg-white text-navy-800 transition hover:-translate-x-0.5 hover:border-navy-900 hover:bg-navy-900 hover:text-white" aria-label="Previous roles">
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <button type="button" onClick={() => scroll(1)} className="flex h-14 w-14 items-center justify-center rounded-full bg-navy-950 text-white transition hover:translate-x-0.5 hover:bg-brand-500" aria-label="Next roles">
-            <ArrowRight className="h-5 w-5" />
-          </button>
-          <Link to="/recruiting" className="link-underline ml-3 text-sm font-semibold text-navy-800">All roles</Link>
-        </Reveal>
-      </div>
-
-      <div
-        ref={track}
-        className="no-scrollbar mt-12 flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-4 [padding-inline:max(1.25rem,calc((100vw-80rem)/2+2rem))] [scroll-padding-inline:max(1.25rem,calc((100vw-80rem)/2+2rem))]"
-      >
-        {loading && Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-[420px] w-[320px] shrink-0 rounded-[28px]" />)}
-        {roles.map((r) => (
-          <Link key={r._id} to={`/recruiting?role=${r._id}#apply`} className="group relative flex w-[300px] shrink-0 snap-start flex-col overflow-hidden rounded-[28px] bg-white shadow-soft ring-1 ring-navy-100 transition duration-500 hover:-translate-y-2 hover:shadow-lift sm:w-[340px]">
-            <div className="relative h-52 overflow-hidden">
-              <img src={INDUSTRY_IMAGE[r.industry]} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-[1.2s] ease-out group-hover:scale-110" />
-              <div className="absolute inset-0 bg-gradient-to-t from-navy-950/70 to-transparent" />
-              <span className="absolute left-5 top-5 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-navy-900 backdrop-blur">{INDUSTRY_LABEL[r.industry]}</span>
-              <span className="absolute bottom-4 right-4 flex h-11 w-11 items-center justify-center rounded-full bg-brand-500 text-white opacity-0 transition-all duration-500 group-hover:rotate-45 group-hover:opacity-100">
-                <ArrowUpRight className="h-5 w-5" aria-hidden />
-              </span>
+    <section id="open-roles" className="relative scroll-mt-16 bg-white py-24" aria-labelledby="roles-heading">
+      <div className="container-page grid gap-10 lg:grid-cols-[340px_1fr] lg:gap-12">
+        {/* ---------- left: sticky navigator ---------- */}
+        <div className="min-w-0 lg:sticky lg:top-28 lg:self-start">
+          <Reveal>
+            <Index n="01" label="Open roles" />
+            <h2 id="roles-heading" className="mt-6 text-4xl font-semibold leading-[1.02] tracking-[-.04em] sm:text-5xl">Hiring <span className="brand-text">right now.</span></h2>
+            <div className="mt-6 flex items-end gap-3">
+              <span className="font-display text-6xl font-bold leading-none text-navy-950">{loading ? '—' : <CountUp end={roles.length} />}</span>
+              <span className="pb-1.5 text-sm leading-snug text-navy-500">open roles across<br />India&apos;s hospitality sector</span>
             </div>
-            <div className="flex flex-1 flex-col p-6">
-              <h3 className="font-display text-2xl font-semibold text-navy-950">{r.title}</h3>
-              <div className="mt-5 flex flex-wrap gap-1.5">
-                {r.positions.slice(0, 3).map((p) => <span key={p} className="rounded-full bg-mist px-2.5 py-1 text-[11px] font-semibold text-navy-600 ring-1 ring-navy-100">{p}</span>)}
-                {r.positions.length > 3 && <span className="rounded-full px-2 py-1 text-[11px] font-semibold text-navy-400">+{r.positions.length - 3}</span>}
+          </Reveal>
+
+          {/* industry tabs: vertical on desktop, scrollable chips on mobile */}
+          <Reveal delay={100} className="no-scrollbar -mx-5 mt-8 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0" role="tablist" aria-label="Filter roles by industry">
+            {tabs.map((t) => {
+              const on = filter === t.value;
+              return (
+                <button
+                  key={t.value}
+                  type="button"
+                  role="tab"
+                  aria-selected={on}
+                  onClick={() => setFilter(t.value)}
+                  className={cx(
+                    'group relative flex shrink-0 items-center gap-3 overflow-hidden rounded-2xl py-2 pl-2 pr-4 text-left transition-all duration-300 lg:w-full',
+                    on ? 'bg-navy-950 text-white shadow-lift' : 'bg-mist text-navy-700 ring-1 ring-navy-100 hover:bg-white hover:shadow-soft'
+                  )}
+                >
+                  {on && <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-brand-500" aria-hidden />}
+                  <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl">
+                    <img src={t.image} alt="" loading="lazy" className={cx('h-full w-full object-cover transition-transform duration-700 group-hover:scale-110', !on && 'grayscale-[30%]')} />
+                  </span>
+                  <span className="flex-1 whitespace-nowrap text-sm font-semibold">{t.label}</span>
+                  <span className={cx('rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums', on ? 'bg-brand-500 text-white' : 'bg-white text-navy-600 ring-1 ring-navy-100')}>{counts[t.value] || 0}</span>
+                </button>
+              );
+            })}
+          </Reveal>
+
+          <Reveal delay={160} className="mt-8 hidden rounded-2xl border border-dashed border-navy-200 p-5 lg:block">
+            <p className="text-sm font-semibold text-navy-900">Can&apos;t find your role?</p>
+            <p className="mt-1 text-sm text-navy-500">Choose <span className="font-semibold text-navy-700">“Others”</span> on the application form and tell us what you do.</p>
+            <Link to="/recruiting#apply" className="link-underline mt-3 inline-block text-sm font-semibold text-brand-600">Apply anyway →</Link>
+          </Reveal>
+        </div>
+
+        {/* ---------- right: role cards ---------- */}
+        <div className="min-w-0">
+          {loading && <div className="grid gap-5 sm:grid-cols-2">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton h-64 rounded-[24px]" />)}</div>}
+          <div key={filter} className="grid gap-5 sm:grid-cols-2">
+            {shown.map((r, i) => (
+              <div key={r._id} className="animate-pop-in" style={{ animationDelay: `${i * 60}ms` }}>
+                <RoleCard role={r} n={i + 1} />
               </div>
-              <span className="mt-auto inline-flex items-center gap-2 pt-6 text-sm font-semibold text-brand-600 transition-all group-hover:gap-3">Apply now <ArrowRight className="h-4 w-4" aria-hidden /></span>
+            ))}
+          </div>
+          {!loading && !shown.length && <p className="text-navy-500">New roles are being added – check back soon.</p>}
+          <div className="mt-8 flex flex-col items-start justify-between gap-4 rounded-[24px] bg-gradient-to-r from-navy-950 to-navy-800 p-6 text-white sm:flex-row sm:items-center">
+            <div>
+              <p className="font-display text-xl font-semibold">Ready to apply?</p>
+              <p className="text-sm text-navy-200">One short form · your CV · about three minutes.</p>
             </div>
-          </Link>
-        ))}
-        <div className="w-1 shrink-0" aria-hidden />
-      </div>
-
-      <div className="container-page mt-8">
-        <div className="h-1 overflow-hidden rounded-full bg-navy-100">
-          <div className="h-full rounded-full bg-gradient-to-r from-brand-400 to-brand-600 transition-[width] duration-300" style={{ width: `${Math.max(12, progress * 100)}%` }} />
+            <Magnetic><Button to="/recruiting" variant="brand" iconRight={ArrowRight}>Start application</Button></Magnetic>
+          </div>
         </div>
       </div>
     </section>
@@ -580,7 +649,7 @@ function Finale() {
             <p className="mt-6 text-sm text-navy-300">Visit us</p>
             <p className="mt-1 text-lg font-semibold text-white">{COMPANY.address}</p>
           </div>
-          {config?.referral?.enabled !== false ? (
+          {REFERRALS_ENABLED && config?.referral?.enabled !== false ? (
             <Link to="/referrals" className="group rounded-3xl bg-gradient-to-br from-brand-400 to-brand-600 p-6 transition duration-500 hover:-translate-y-1 hover:shadow-glow-lg">
               <Gift className="h-5 w-5 text-white" aria-hidden />
               <p className="mt-6 text-sm text-white/85">Know someone brilliant?</p>
@@ -623,7 +692,7 @@ export default function Home() {
     <>
       <Seo jsonLd={jsonLd} />
       <Hero />
-      <RolesCarousel />
+      <RolesExplorer />
       <Process />
       <Pathways />
       <Ribbons />

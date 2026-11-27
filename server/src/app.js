@@ -23,6 +23,7 @@ app.use(
       useDefaults: true,
       directives: {
         'img-src': ["'self'", 'data:', 'https://images.unsplash.com'],
+        'frame-src': ['https://www.google.com', 'https://maps.google.com'],
         'font-src': ["'self'", 'https://fonts.gstatic.com'],
         'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         'script-src': ["'self'"],

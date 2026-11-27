@@ -1,12 +1,15 @@
 const env = require('./config/env');
 const { connectDB } = require('./config/db');
 const app = require('./app');
+const realtime = require('./realtime');
 
 async function start() {
   await connectDB();
   const server = app.listen(env.port, () => {
     console.log(`[api] Hospitality369 API listening on http://localhost:${env.port} (${env.nodeEnv})`);
   });
+
+  realtime.init(server);
 
   const shutdown = (signal) => {
     console.log(`[api] ${signal} received, shutting down`);
